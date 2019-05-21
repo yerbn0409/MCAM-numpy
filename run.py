@@ -25,25 +25,25 @@ def _get_V_from_U(M, U, omega):
 
     for j in range(0, column):
         U_ = U.copy()
-        U_[(1 - omega[:, j]).astype(np.int16), :] = 0
-        V[:, j] = np.linalg.lstsq(U_, M[:, j], rcond=None)[0]
+        U_[(1 - omega[:, j]).astype(np.int16), :] = 0 # mask U_ with omega
+        V[:, j] = np.linalg.lstsq(U_, M[:, j], rcond=None)[0] # find min_x with M * x = U_
     return V
 
 
 def _get_err(M, U, V, omega):
     error_matrix = M - np.dot(U, V)
-    error_matrix[(1 - omega).astype(np.int16)] = 0
+    error_matrix[(1 - omega).astype(np.int16)] = 0 # fill error_matrix with 0 if value of entry is 0(not observed)
     return np.linalg.norm(error_matrix, 'fro') / np.count_nonzero(omega)
 
 
 def _split_omega(omega, T):
     omegas = [np.zeros(omega.shape) for t in range(2 * T + 1)]
     row, col = omega.shape
-    for i in range(row):
+    for i in range(row): # pick one of the elements of omegas, and fill it [i, j] with omega[i, j]
         for j in range(col):
             idx = random.randint(0, 2 * T)
-            omegas[idx][i, j] = omega[i, j]
-    return omegas
+            omegas[idx][i, j] = omega[i, j] # for each omega[i, j], one of omegas contains it
+    return omegas 
 
 
 def _init_U(M, omega, p, k, mu):
@@ -54,7 +54,7 @@ def _init_U(M, omega, p, k, mu):
     U_hat = U.copy()
     clip_threshold = 2 * mu * math.sqrt(k / max(M.shape))
     U_hat[U_hat > clip_threshold] = 0
-    U_hat = orth(U_hat)
+    U_hat = orth(U_hat) # return orthornormal basises
     print("|U_hat-U|_F/|U|_F:",
           np.linalg.norm(np.subtract(U_hat, U), ord='fro') / np.linalg.norm(
               U, ord='fro'))
@@ -63,7 +63,8 @@ def _init_U(M, omega, p, k, mu):
 
 def _solve(M, omega, p, k, T, mu):
     omegas = _split_omega(omega, T)
-    U = _init_U(M[:, :], omegas[0], p, k, mu)
+    # U is orthornormal basis for entries smaller than threshold
+    U = _init_U(M[:, :], omegas[0], p, k, mu) # element of omegas[0] contains 0 with probability 2*T/(2*T+1), omega[i, j] with probability 1/(2*T+1)
     print('')
     V = None
     for t in range(T):
